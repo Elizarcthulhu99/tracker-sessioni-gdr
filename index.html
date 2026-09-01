@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sessioni GdR">
-<link rel="apple-touch-icon" href="icon.svg">
-<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <style>
   :root{
@@ -231,6 +231,8 @@
   </nav>
 
   <main>
+    <datalist id="gameList"></datalist>
+
     <!-- TIMER TAB -->
     <section id="tab-timer" class="active">
       <div class="timer-card" id="timerCard"></div>
@@ -470,7 +472,7 @@ function renderTimerCard(){
     el.innerHTML = `
       <div class="timer-status">Nessuna sessione attiva</div>
       <div class="timer-clock">00:00:00</div>
-      <input class="timer-game-input" id="gameInput" placeholder="Nome del gioco (es. Call of Cthulhu)">
+      <input class="timer-game-input" id="gameInput" list="gameList" placeholder="Nome del gioco (es. Call of Cthulhu)">
       <button class="btn btn-start" id="startBtn">Avvia sessione</button>
     `;
     document.getElementById('startBtn').onclick = startSession;
@@ -581,7 +583,7 @@ function editFormHtml(s){
     <div class="edit-form">
       <div class="full">
         <label>Gioco</label>
-        <input type="text" class="ef-game" value="${escapeAttr(s.game)}">
+        <input type="text" class="ef-game" list="gameList" value="${escapeAttr(s.game)}">
       </div>
       <div>
         <label>Data</label>
@@ -643,7 +645,7 @@ document.getElementById('addManualBtn').addEventListener('click', ()=>{
         <div class="edit-form">
           <div class="full">
             <label>Gioco</label>
-            <input type="text" id="new-game" placeholder="Nome del gioco">
+            <input type="text" id="new-game" list="gameList" placeholder="Nome del gioco">
           </div>
           <div>
             <label>Data</label>
@@ -853,8 +855,20 @@ function escapeHtml(str){
 }
 function escapeAttr(str){ return escapeHtml(str); }
 
+// ---------- Lista giochi (autocomplete) ----------
+function renderGameList(){
+  // giochi unici, ordinati dal più usato di recente
+  const seen = new Map();
+  [...sessions]
+    .sort((a,b)=> (b.date+b.startTime).localeCompare(a.date+a.startTime))
+    .forEach(s=>{ if(!seen.has(s.game)) seen.set(s.game, true); });
+  const el = document.getElementById('gameList');
+  el.innerHTML = [...seen.keys()].map(g=>`<option value="${escapeAttr(g)}"></option>`).join('');
+}
+
 // ---------- Master render ----------
 function renderAll(){
+  renderGameList();
   renderTimerCard();
   renderRecentList();
   renderFullList();
