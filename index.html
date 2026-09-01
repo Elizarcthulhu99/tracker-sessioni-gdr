@@ -93,19 +93,14 @@
   .timer-game-input::placeholder{color:var(--ink-dim);}
 
   .autocomplete-wrap{position:relative;}
-  .autocomplete-menu{
-    position:absolute;left:0;right:0;top:calc(100% - 10px);z-index:30;
-    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
-    max-height:180px;overflow-y:auto;display:none;
-    box-shadow:0 6px 16px rgba(0,0,0,.35);
+  .game-chips{
+    display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;
   }
-  .autocomplete-menu.show{display:block;}
-  .autocomplete-item{
-    padding:10px 12px;font-size:.88rem;color:var(--ink);cursor:pointer;
-    border-bottom:1px solid var(--line);
+  .game-chip{
+    background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);
+    padding:6px 12px;border-radius:16px;font-size:.78rem;cursor:pointer;
   }
-  .autocomplete-item:last-child{border-bottom:none;}
-  .autocomplete-item:active,.autocomplete-item.highlighted{background:var(--surface);}
+  .game-chip:active{background:var(--surface);border-color:var(--amber-dim);color:var(--amber);}
   .btn{
     display:inline-block;
     width:100%;
@@ -888,26 +883,18 @@ function attachGameAutocomplete(inputEl){
   if(!inputEl) return;
   const wrap = inputEl.closest('.autocomplete-wrap');
   if(!wrap) return;
-  let menu = wrap.querySelector('.autocomplete-menu');
-  if(!menu){
-    menu = document.createElement('div');
-    menu.className = 'autocomplete-menu';
-    wrap.appendChild(menu);
+  let chips = wrap.querySelector('.game-chips');
+  if(!chips){
+    chips = document.createElement('div');
+    chips.className = 'game-chips';
+    wrap.appendChild(chips);
   }
-  function openMenu(){
-    const q = inputEl.value.trim().toLowerCase();
-    const games = getKnownGames();
-    const matches = q ? games.filter(g=>g.toLowerCase().includes(q)) : games;
-    if(matches.length===0){ menu.classList.remove('show'); menu.innerHTML=''; return; }
-    menu.innerHTML = matches.map(g=>`<div class="autocomplete-item">${escapeHtml(g)}</div>`).join('');
-    menu.querySelectorAll('.autocomplete-item').forEach((item,i)=>{
-      item.onmousedown = (e)=>{ e.preventDefault(); inputEl.value = matches[i]; menu.classList.remove('show'); };
-    });
-    menu.classList.add('show');
-  }
-  inputEl.addEventListener('focus', openMenu);
-  inputEl.addEventListener('input', openMenu);
-  inputEl.addEventListener('blur', ()=> setTimeout(()=> menu.classList.remove('show'), 120));
+  const games = getKnownGames().slice(0, 8);
+  if(games.length===0){ chips.innerHTML = ''; return; }
+  chips.innerHTML = games.map(g=>`<span class="game-chip">${escapeHtml(g)}</span>`).join('');
+  chips.querySelectorAll('.game-chip').forEach((chip,i)=>{
+    chip.addEventListener('click', ()=>{ inputEl.value = games[i]; inputEl.focus(); });
+  });
 }
 
 // ---------- Master render ----------
