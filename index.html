@@ -91,6 +91,21 @@
     margin-bottom:14px;
   }
   .timer-game-input::placeholder{color:var(--ink-dim);}
+
+  .autocomplete-wrap{position:relative;}
+  .autocomplete-menu{
+    position:absolute;left:0;right:0;top:calc(100% - 10px);z-index:30;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+    max-height:180px;overflow-y:auto;display:none;
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
+  }
+  .autocomplete-menu.show{display:block;}
+  .autocomplete-item{
+    padding:10px 12px;font-size:.88rem;color:var(--ink);cursor:pointer;
+    border-bottom:1px solid var(--line);
+  }
+  .autocomplete-item:last-child{border-bottom:none;}
+  .autocomplete-item:active,.autocomplete-item.highlighted{background:var(--surface);}
   .btn{
     display:inline-block;
     width:100%;
@@ -231,8 +246,6 @@
   </nav>
 
   <main>
-    <datalist id="gameList"></datalist>
-
     <!-- TIMER TAB -->
     <section id="tab-timer" class="active">
       <div class="timer-card" id="timerCard"></div>
@@ -472,10 +485,13 @@ function renderTimerCard(){
     el.innerHTML = `
       <div class="timer-status">Nessuna sessione attiva</div>
       <div class="timer-clock">00:00:00</div>
-      <input class="timer-game-input" id="gameInput" list="gameList" placeholder="Nome del gioco (es. Call of Cthulhu)">
+            <div class="autocomplete-wrap">
+        <input class="timer-game-input" id="gameInput" autocomplete="off" placeholder="Nome del gioco (es. Call of Cthulhu)">
+      </div>
       <button class="btn btn-start" id="startBtn">Avvia sessione</button>
     `;
     document.getElementById('startBtn').onclick = startSession;
+    attachGameAutocomplete(document.getElementById('gameInput'));
   } else {
     el.innerHTML = `
       <div class="timer-status">Sessione in corso</div>
@@ -583,7 +599,9 @@ function editFormHtml(s){
     <div class="edit-form">
       <div class="full">
         <label>Gioco</label>
-        <input type="text" class="ef-game" list="gameList" value="${escapeAttr(s.game)}">
+        <div class="autocomplete-wrap">
+          <input type="text" class="ef-game" autocomplete="off" value="${escapeAttr(s.game)}">
+        </div>
       </div>
       <div>
         <label>Data</label>
@@ -607,7 +625,7 @@ function editFormHtml(s){
 }
 function bindSessionCardEvents(container){
   container.querySelectorAll('.edit-btn').forEach(b=>{
-    b.onclick = ()=>{ editingId = b.dataset.id; renderAll(); };
+    b.onclick = ()=>{ editingId = b.dataset.id; renderAll(); attachGameAutocomplete(document.querySelector('.ef-game')); };
   });
   container.querySelectorAll('.delete-btn').forEach(b=>{
     b.onclick = async ()=>{
@@ -645,7 +663,9 @@ document.getElementById('addManualBtn').addEventListener('click', ()=>{
         <div class="edit-form">
           <div class="full">
             <label>Gioco</label>
-            <input type="text" id="new-game" list="gameList" placeholder="Nome del gioco">
+            <div class="autocomplete-wrap">
+            <input type="text" id="new-game" autocomplete="off" placeholder="Nome del gioco">
+          </div>
           </div>
           <div>
             <label>Data</label>
@@ -667,6 +687,7 @@ document.getElementById('addManualBtn').addEventListener('click', ()=>{
         </div>
       </div>
     `;
+    attachGameAutocomplete(document.getElementById('new-game'));
     document.getElementById('new-save').onclick = async ()=>{
       const game = document.getElementById('new-game').value.trim();
       if(!game){ document.getElementById('new-game').focus(); return; }
@@ -855,20 +876,42 @@ function escapeHtml(str){
 }
 function escapeAttr(str){ return escapeHtml(str); }
 
-// ---------- Lista giochi (autocomplete) ----------
-function renderGameList(){
-  // giochi unici, ordinati dal più usato di recente
+// ---------- Lista giochi (autocomplete personalizzato) ----------
+function getKnownGames(){
   const seen = new Map();
   [...sessions]
     .sort((a,b)=> (b.date+b.startTime).localeCompare(a.date+a.startTime))
     .forEach(s=>{ if(!seen.has(s.game)) seen.set(s.game, true); });
-  const el = document.getElementById('gameList');
-  el.innerHTML = [...seen.keys()].map(g=>`<option value="${escapeAttr(g)}"></option>`).join('');
+  return [...seen.keys()];
+}
+function attachGameAutocomplete(inputEl){
+  if(!inputEl) return;
+  const wrap = inputEl.closest('.autocomplete-wrap');
+  if(!wrap) return;
+  let menu = wrap.querySelector('.autocomplete-menu');
+  if(!menu){
+    menu = document.createElement('div');
+    menu.className = 'autocomplete-menu';
+    wrap.appendChild(menu);
+  }
+  function openMenu(){
+    const q = inputEl.value.trim().toLowerCase();
+    const games = getKnownGames();
+    const matches = q ? games.filter(g=>g.toLowerCase().includes(q)) : games;
+    if(matches.length===0){ menu.classList.remove('show'); menu.innerHTML=''; return; }
+    menu.innerHTML = matches.map(g=>`<div class="autocomplete-item">${escapeHtml(g)}</div>`).join('');
+    menu.querySelectorAll('.autocomplete-item').forEach((item,i)=>{
+      item.onmousedown = (e)=>{ e.preventDefault(); inputEl.value = matches[i]; menu.classList.remove('show'); };
+    });
+    menu.classList.add('show');
+  }
+  inputEl.addEventListener('focus', openMenu);
+  inputEl.addEventListener('input', openMenu);
+  inputEl.addEventListener('blur', ()=> setTimeout(()=> menu.classList.remove('show'), 120));
 }
 
 // ---------- Master render ----------
 function renderAll(){
-  renderGameList();
   renderTimerCard();
   renderRecentList();
   renderFullList();
